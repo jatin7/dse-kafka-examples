@@ -26,10 +26,8 @@ import java.util.concurrent.atomic.AtomicLong;
 
 public class AvroProducer {
 
-  private static final String TOPIC = "avro-stream";
   private static final int SEGMENTS_PER_RECORD = 10;
   private static final int FIELDS_PER_SEGMENT = 10;
-  private static final int TOTAL_RECORDS = 200_000_000;
 
   // Report number of records sent every this many seconds.
   private static final long PROGRESS_REPORTING_INTERVAL = 5;
@@ -38,12 +36,39 @@ public class AvroProducer {
 
   public static void main(String[] args) throws InterruptedException {
 
+    String TOPIC = "avro-stream";
+    int TOTAL_RECORDS = 1000;
+    String BOOTSTRAP_SERVERS = "localhost:9092";
+    String SCHEMA_REGISTRY_URL = "http://localhost:8081";
+    
+    if (args.length == 1) {
+        TOPIC = args[0];
+    }
+    else if (args.length == 2){
+        TOPIC = args[0];
+        TOTAL_RECORDS = Integer.parseInt(args[1]);
+    }
+    else if (args.length == 3){
+        TOPIC = args[0];
+        TOTAL_RECORDS = Integer.parseInt(args[1]);
+        BOOTSTRAP_SERVERS = args[2];
+    }
+    else if (args.length == 4){
+        TOPIC = args[0];
+        TOTAL_RECORDS = Integer.parseInt(args[1]);
+        BOOTSTRAP_SERVERS = args[2];
+        SCHEMA_REGISTRY_URL = args[3];
+    }
+    
     Properties props = new Properties();
-    props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092");
+    props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, BOOTSTRAP_SERVERS);
     props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, KafkaAvroSerializer.class.getName());
     props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, KafkaAvroSerializer.class.getName());
-    props.put(KafkaAvroSerializerConfig.SCHEMA_REGISTRY_URL_CONFIG, "http://localhost:8081");
+    props.put(KafkaAvroSerializerConfig.SCHEMA_REGISTRY_URL_CONFIG, SCHEMA_REGISTRY_URL);
     props.put(ProducerConfig.ACKS_CONFIG, "1");
+    
+    log.info("Topic Name: {}, Total Records: {}, Bootstrap Servers: {}, Schema Registry URL: {}",
+            TOPIC, TOTAL_RECORDS, BOOTSTRAP_SERVERS, SCHEMA_REGISTRY_URL);
 
     // Start a timer to measure how long this run takes overall.
     Instant start = Instant.now();
@@ -115,6 +140,8 @@ public class AvroProducer {
 
     // Stop the thread that periodically reports progress.
     scheduler.shutdown();
+    // shutdown producer
+    producer.close();
     long duration = Duration.between(start, Instant.now()).getSeconds();
     log.info("Completed loading {}/{} records to Kafka in {} seconds",
         TOTAL_RECORDS - errorCount.get(), TOTAL_RECORDS, duration);
